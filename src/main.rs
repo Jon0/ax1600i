@@ -149,10 +149,10 @@ impl<'a> UsbController<'a> {
         println!("Fan mode {:x}", out[0]);
     }
 
-    fn set_fan_mode(&mut self) {
+    fn set_fan_mode(&mut self, mode: u8) {
         println!("Setting fan mode");
         let mut out: [u8; 4096] = [0; 4096];
-        let mode: [u8; 1] = [0x01];
+        let mode: [u8; 1] = [mode];
         self.write_data_psu(0x01, 0xf0, &mode, &mut out);
     }
 
@@ -174,7 +174,8 @@ impl<'a> UsbController<'a> {
         self.setup_dongle();
         self.print_device();
 
-        self.set_fan_mode();
+        // 0 is auto, 1 is manual
+        self.set_fan_mode(1);
         self.set_fan_speed_percent(40);
 
         self.unknown_1();
