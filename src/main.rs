@@ -165,7 +165,7 @@ impl<'a> UsbController<'a> {
     fn set_fan_speed_percent(&mut self, speed: u8) {
         let mut out: [u8; 4096] = [0; 4096];
         let percent: [u8; 1] = [speed];
-        self.write_data_psu(0x02, 0xe7, &percent, &mut out); //0x3b
+        self.write_data_psu(0x01, 0xe7, &percent, &mut out); //0x3b
     }
 
     fn test(&mut self) {
