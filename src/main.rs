@@ -17,9 +17,6 @@ use rand::Rng;
 use crc::{crc16, Hasher16};
 use std::thread;
 
-/*
- * sets and reads fan and pump speeds
- */
 struct UsbController<'a> {
     handle: libusb::DeviceHandle<'a>,
     interface: u8,
@@ -100,7 +97,7 @@ impl<'a> UsbController<'a> {
         self.write_encoded(0, &msg7, &mut out);
     }
 
-    fn read_and_print(&mut self, len: u8, reg: u8, mut out: &mut [u8]) -> usize {
+    fn read_data_psu(&mut self, len: u8, reg: u8, mut out: &mut [u8]) -> usize {
         let msg2: [u8; 7] = [
             0x13, 0x03, 0x06, 0x01, 0x07, len, reg,
         ];
@@ -130,25 +127,25 @@ impl<'a> UsbController<'a> {
 
     fn print_device(&mut self) {
         let mut out: [u8; 4096] = [0; 4096];
-        let newsize = self.read_and_print(0x07, 0x9a, &mut out);
+        let newsize = self.read_data_psu(0x07, 0x9a, &mut out);
         let s = String::from_utf8_lossy(&out[0..newsize]);
         println!("Device {}", s);
     }
 
     fn unknown_1(&mut self) {
         let mut out: [u8; 4096] = [0; 4096];
-        self.read_and_print(0x02, 0x8c, &mut out);
+        self.read_data_psu(0x02, 0x8c, &mut out);
     }
 
     fn print_temp(&mut self) {
         let mut out: [u8; 4096] = [0; 4096];
-        self.read_and_print(0x02, 0x8e, &mut out);
+        self.read_data_psu(0x02, 0x8e, &mut out);
         println!("Temp {}", UsbController::convert_byte_float(&out));
     }
 
     fn print_fan_mode(&mut self) {
         let mut out: [u8; 4096] = [0; 4096];
-        self.read_and_print(0x01, 0xf0, &mut out);
+        self.read_data_psu(0x01, 0xf0, &mut out);
         println!("Fan mode {:x}", out[0]);
     }
 
@@ -161,7 +158,7 @@ impl<'a> UsbController<'a> {
 
     fn print_fan_speed(&mut self) {
         let mut out: [u8; 4096] = [0; 4096];
-        self.read_and_print(0x02, 0x90, &mut out);
+        self.read_data_psu(0x02, 0x90, &mut out);
         println!("Fan speed {}", UsbController::convert_byte_float(&out));
     }
 
@@ -178,7 +175,7 @@ impl<'a> UsbController<'a> {
         self.print_device();
 
         self.set_fan_mode();
-        self.set_fan_speed_percent(80);
+        self.set_fan_speed_percent(40);
 
         self.unknown_1();
         self.print_temp();
@@ -321,10 +318,6 @@ fn print_device(device: &libusb::Device) {
             }
         }
     }
-}
-
-enum LedMode {
-    Off, Static { r: u8, g: u8, b: u8 }, Cycle { speed: u16, brightness: u8 }
 }
 
 struct Config {
