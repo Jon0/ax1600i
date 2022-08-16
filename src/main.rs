@@ -165,24 +165,7 @@ impl<'a> UsbController<'a> {
     fn set_fan_speed_percent(&mut self, speed: u8) {
         let mut out: [u8; 4096] = [0; 4096];
         let percent: [u8; 1] = [speed];
-        self.write_data_psu(0x01, 0xe7, &percent, &mut out); //0x3b
-    }
-
-    fn test(&mut self) {
-
-        self.print_name();
-        self.setup_dongle();
-        self.print_device();
-
-        // 0 is auto, 1 is manual
-        self.set_fan_mode(1);
-        self.set_fan_speed_percent(40);
-
-        self.unknown_1();
-        self.print_temp();
-        self.print_fan_mode();
-        self.print_fan_speed();
-
+        self.write_data_psu(0x01, 0x3b, &percent, &mut out); //0xe7
     }
 
     fn decode(msg: &[u8], size: usize, mut out: &mut [u8]) -> usize {
@@ -261,9 +244,9 @@ impl<'a> UsbController<'a> {
 
     fn read_and_decode(&mut self, mut out: &mut [u8]) -> usize {
         let mut resp: [u8; 4096] = [0; 4096];
-        let mut result = self.handle.read_bulk(self.read_address, &mut resp, Duration::from_secs(1)).unwrap();
+        let mut result = self.handle.read_bulk(self.read_address, &mut resp, Duration::from_secs(2)).unwrap();
         if resp[result - 1] != 0 {
-            result += self.handle.read_bulk(self.read_address, &mut resp[result..], Duration::from_secs(1)).unwrap();
+            result += self.handle.read_bulk(self.read_address, &mut resp[result..], Duration::from_secs(2)).unwrap();
         }
         return UsbController::decode(&resp, result, &mut out);
     }
@@ -325,7 +308,8 @@ struct Config {
     vendor_id: u16,
     product_id: u16,
     print_endpoints: bool,
-    print_status: bool
+    print_status: bool,
+    fan_percent: Option<u8>
 }
 
 impl Config {
@@ -334,7 +318,8 @@ impl Config {
             vendor_id: 0x1b1c,
             product_id: 0x1c11,
             print_endpoints: false,
-            print_status: false
+            print_status: false,
+            fan_percent: None
         }
     }
 }
@@ -352,7 +337,23 @@ fn select_device(device: libusb::Device, config: &Config) {
     controller.claim();
 
     controller.startup();
-    controller.test();
+    controller.print_name();
+    controller.setup_dongle();
+    controller.print_device();
+
+    if config.fan_percent.is_some() {
+        // 0 is auto, 1 is manual
+        controller.set_fan_mode(1);
+        controller.set_fan_speed_percent(config.fan_percent.unwrap());
+    }
+    else {
+        controller.set_fan_mode(0);
+    }
+
+    controller.unknown_1();
+    controller.print_temp();
+    controller.print_fan_mode();
+    controller.print_fan_speed();
 
     controller.release();
 }
@@ -360,6 +361,12 @@ fn select_device(device: libusb::Device, config: &Config) {
 
 fn main() {
     let mut config = Config::default();
+
+    let args: Vec<String> = env::args().collect();
+    if args.len() == 2 {
+        config.fan_percent = Some(args.get(1).unwrap().parse::<u8>().unwrap());
+    }
+
     let mut context = libusb::Context::new().unwrap();
     for mut device in context.devices().unwrap().iter() {
         let device_desc = device.device_descriptor().unwrap();
