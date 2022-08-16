@@ -140,7 +140,7 @@ impl<'a> UsbController<'a> {
     fn print_temp(&mut self) {
         let mut out: [u8; 4096] = [0; 4096];
         self.read_data_psu(0x02, 0x8e, &mut out);
-        println!("Temp {}", UsbController::convert_byte_float(&out));
+        println!("Temp {} C", UsbController::convert_byte_float(&out));
     }
 
     fn print_fan_mode(&mut self) {
@@ -159,13 +159,25 @@ impl<'a> UsbController<'a> {
     fn print_fan_speed(&mut self) {
         let mut out: [u8; 4096] = [0; 4096];
         self.read_data_psu(0x02, 0x90, &mut out);
-        println!("Fan speed {}", UsbController::convert_byte_float(&out));
+        println!("Fan speed {} RPM", UsbController::convert_byte_float(&out));
     }
 
     fn set_fan_speed_percent(&mut self, speed: u8) {
         let mut out: [u8; 4096] = [0; 4096];
         let percent: [u8; 1] = [speed];
         self.write_data_psu(0x01, 0x3b, &percent, &mut out); //0xe7
+    }
+
+    fn set_main_page(&mut self) {
+        let mut out: [u8; 4096] = [0; 4096];
+        let page: [u8; 1] = [0x00];
+        self.write_data_psu(0x01, 0x00, &page, &mut out); //0xe7
+    }
+
+    fn print_main_power(&mut self) {
+        let mut out: [u8; 4096] = [0; 4096];
+        self.read_data_psu(0x02, 0xee, &mut out);
+        println!("Power out {} W", UsbController::convert_byte_float(&out));
     }
 
     fn decode(msg: &[u8], size: usize, mut out: &mut [u8]) -> usize {
@@ -340,6 +352,7 @@ fn select_device(device: libusb::Device, config: &Config) {
     controller.print_name();
     controller.setup_dongle();
     controller.print_device();
+    controller.set_main_page();
 
     if config.fan_percent.is_some() {
         // 0 is auto, 1 is manual
@@ -354,6 +367,7 @@ fn select_device(device: libusb::Device, config: &Config) {
     controller.print_temp();
     controller.print_fan_mode();
     controller.print_fan_speed();
+    controller.print_main_power();
 
     controller.release();
 }
